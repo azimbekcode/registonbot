@@ -1,0 +1,33 @@
+# Python Caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables (SENSITIVE)
+.env
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Logs
+*.log
+
+# Database
+registon.db
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+nul
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary / Patch files
+patch_admin*.py
+fix_admin.py
