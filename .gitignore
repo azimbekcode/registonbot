@@ -27,7 +27,3 @@ nul
 # IDEs
 .vscode/
 .idea/
-
-# Temporary / Patch files
-patch_admin*.py
-fix_admin.py
