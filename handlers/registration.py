@@ -155,11 +155,11 @@ async def process_phone_contact(message: Message, state: FSMContext, bot: Bot):
         logger.info(f"Attempting to add referral: inviter={referred_by}, invitee={message.from_user.id}")
         added = await db.add_referral(referred_by, message.from_user.id)
         if added:
-            inviter_row = await db.get_user(referred_by)
             inviter_lang = await db.get_user_language(referred_by)
             req_str = await db.get_setting("required_referrals") or "5"
             
-            # Since add_referral already did +1 in DB, we just take the current value
+            # Fetch fresh inviter data AFTER add_referral committed the +1
+            inviter_row = await db.get_user(referred_by)
             new_count = (inviter_row["referral_count"] or 0) if inviter_row else 0
             
             logger.info(f"Referral successfully added. New count for {referred_by} is {new_count}")

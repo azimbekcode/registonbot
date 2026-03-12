@@ -68,7 +68,14 @@ class AuthMiddleware(BaseMiddleware):
                         if event.callback_query and event.callback_query.data == "check_subscription":
                             is_check_cb = True
                     
-                    if not is_check_cb:
+                    # Also skip for /start commands (they handle subscription check internally
+                    # and need to process referral codes from deep links first)
+                    is_start_cmd = False
+                    if isinstance(event, Update) and event.message and event.message.text:
+                        if event.message.text.startswith("/start"):
+                            is_start_cmd = True
+
+                    if not is_check_cb and not is_start_cmd:
                         channels = await db.get_active_channels()
                         if channels:
                             from utils.channel_check import check_subscriptions

@@ -36,7 +36,12 @@ class StateCleanupMiddleware(BaseMiddleware):
         # 1. Handle Messages (ReplyKeyboard buttons)
         if isinstance(event, Message) and event.text:
             if event.text in ALL_BUTTON_LABELS:
+                # Preserve referral_code before clearing state
+                old_data = await state.get_data()
+                referral_code = old_data.get("referral_code")
                 await state.clear()
+                if referral_code:
+                    await state.update_data(referral_code=referral_code)
         
         # 2. Handle CallbackQueries (Inline buttons)
         # We clear state for most admin callback queries to ensure fresh start

@@ -39,6 +39,9 @@ async def main():
     await db.init_db()
     logger.info("✅ Ma'lumotlar bazasi tayyor.")
 
+    # Sync referral counts to fix any mismatches
+    await db.sync_referral_counts()
+
     # Ensure superadmin exists
     await db.ensure_superadmin(config.superadmin_id)
     logger.info("✅ Superadmin tekshirildi: %s", config.superadmin_id)

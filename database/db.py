@@ -312,9 +312,14 @@ async def add_referral(inviter_id: int, invitee_id: int) -> bool:
                     "INSERT INTO referrals (inviter_id, invitee_id) VALUES ($1, $2)",
                     inviter_id, invitee_id,
                 )
-                await conn.execute(
-                    "UPDATE users SET referral_count = referral_count + 1 WHERE telegram_id = $1",
+                # Sync referral_count from actual referrals table (more reliable than +1)
+                actual_count = await conn.fetchval(
+                    "SELECT COUNT(*) FROM referrals WHERE inviter_id = $1",
                     inviter_id,
+                )
+                await conn.execute(
+                    "UPDATE users SET referral_count = $1 WHERE telegram_id = $2",
+                    actual_count, inviter_id,
                 )
             return True
     except asyncpg.UniqueViolationError:
