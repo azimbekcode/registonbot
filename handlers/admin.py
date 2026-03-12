@@ -6,6 +6,7 @@ Sections: users, contestants, channels, courses, stats, settings, admins, broadc
 import asyncio
 import logging
 import io
+import re
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
@@ -463,31 +464,83 @@ async def admin_ch_add(callback: CallbackQuery, state: FSMContext):
 async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
     if not await check_admin(message.from_user.id):
         return
-    await state.clear()
+    
     channel_input = message.text.strip()
+    
+    # --- Exhaustive Link Cleaning ---
+    # 1. Handle common prefixes/suffixes
+    channel_input = channel_input.replace(" ", "")
+    
+    # 2. Handle various link formats
+    if "t.me/" in channel_input:
+        # format: https://t.me/username or t.me/username
+        # format: https://t.me/c/123456789/123
+        if "/c/" in channel_input:
+            match = re.search(r"t\.me/c/(\d+)", channel_input)
+            if match:
+                channel_input = f"-100{match.group(1)}"
+        else:
+            # clean up username from link
+            channel_input = channel_input.split("/")[-1]
+            if not channel_input.startswith("@"):
+                channel_input = "@" + channel_input
+                
+    # 3. Handle numeric IDs without prefix
+    if channel_input.isdigit() and not channel_input.startswith("-"):
+        channel_input = f"-100{channel_input}"
+        
+    # 4. Handle usernames without @
+    if not channel_input.startswith("@") and not channel_input.startswith("-") and not channel_input.isdigit():
+        channel_input = "@" + channel_input
 
     # Try to get channel info
     try:
+        # First attempt: get_chat
         chat = await bot.get_chat(channel_input)
-        channel_id = f"@{chat.username}" if chat.username else str(chat.id)
+        stored_id = str(chat.id)  # Always use numeric ID for DB to avoid issues if username changes
+        # But for display, preferred username
+        display_id = f"@{chat.username}" if chat.username else str(chat.id)
         title = chat.title or channel_input
 
-        # Check bot can get members (bot must be admin)
+        # Check bot status: must be admin to check other members later
         try:
-            await bot.get_chat_member(chat.id, message.from_user.id)
-        except Exception:
-            pass  # Still add, just warn
+            me = await bot.get_me()
+            member = await bot.get_chat_member(chat.id, me.id)
+            if member.status not in ("administrator", "creator"):
+                await message.answer(
+                    f"⚠️ <b>Ogohlantirish:</b> Bot kanalda admin emas!\n\n"
+                    f"Bot kanalda <b>Admin</b> bo'lishi shart, aks holda obunani tekshira olmaydi."
+                )
+        except Exception as e:
+            logger.warning("Bot status check failed: %s", e)
 
-        await db.add_channel(channel_id, title, message.from_user.id)
+        # Save to DB
+        await db.add_channel(stored_id, title, message.from_user.id)
+        await state.clear()
+        
         await message.answer(
-            f"✅ Kanal qo'shildi: <b>{title}</b> ({channel_id})",
+            f"✅ Kanal muvaffaqiyatli qo'shildi!\n\n"
+            f"🏷 Nomi: <b>{title}</b>\n"
+            f"🆔 ID: <code>{stored_id}</code>\n"
+            f"🔗 Manzil: {display_id}",
             reply_markup=admin_back_kb(),
         )
+        
     except Exception as e:
         logger.error("Error adding channel: %s", e)
+        error_msg = str(e)
+        
+        # Friendly error messages
+        if "chat not found" in error_msg.lower():
+            hint = "Kanal topilmadi. Username yoki ID noto'g'ri bo'lishi mumkin."
+        elif "admin" in error_msg.lower():
+            hint = "Botni kanalga admin qilib so'ng urinib ko'ring."
+        else:
+            hint = "Kanal username yoki ID sini tekshiring."
+            
         await message.answer(
-            "❌ Kanal topilmadi yoki bot kanalga admin qilinmagan.\n"
-            "Botni kanalga admin qilib qayta urinib ko'ring.",
+            f"❌ <b>Xatolik:</b>\n<code>{error_msg}</code>\n\n"
+            f"💡 {hint}",
             reply_markup=admin_back_kb(),
         )
 
