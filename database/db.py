@@ -70,12 +70,14 @@ async def init_db():
             MIGRATE_COURSES_FILE_ID, 
             MIGRATE_USERS_LANGUAGE, 
             MIGRATE_COURSES_CATEGORY,
-            MIGRATE_COURSES_CAPTION
+            MIGRATE_COURSES_CAPTION,
+            MIGRATE_CHANNELS_INVITE_LINK
         )
         await conn.execute(MIGRATE_COURSES_FILE_ID)
         await conn.execute(MIGRATE_USERS_LANGUAGE)
         await conn.execute(MIGRATE_COURSES_CATEGORY)
         await conn.execute(MIGRATE_COURSES_CAPTION)
+        await conn.execute(MIGRATE_CHANNELS_INVITE_LINK)
 
         # Insert default settings (ON CONFLICT DO NOTHING = no overwrite)
         for key, value in DEFAULT_SETTINGS:
@@ -405,12 +407,15 @@ async def get_all_channels() -> List[asyncpg.Record]:
         return await conn.fetch("SELECT * FROM channels ORDER BY added_at DESC")
 
 
-async def add_channel(channel_id: str, channel_title: str, added_by: int):
+async def add_channel(channel_id: str, channel_title: str, added_by: int, invite_link: Optional[str] = None):
     async with pool().acquire() as conn:
         await conn.execute(
-            """INSERT INTO channels (channel_id, channel_title, added_by)
-               VALUES ($1, $2, $3) ON CONFLICT DO NOTHING""",
-            channel_id, channel_title, added_by,
+            """INSERT INTO channels (channel_id, channel_title, added_by, invite_link)
+               VALUES ($1, $2, $3, $4) ON CONFLICT (channel_id) DO UPDATE SET
+               channel_title = EXCLUDED.channel_title,
+               invite_link = EXCLUDED.invite_link,
+               is_active = 1""",
+            channel_id, channel_title, added_by, invite_link,
         )
 
 

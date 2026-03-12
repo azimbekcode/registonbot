@@ -501,9 +501,11 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
         # First attempt: get_chat
         try:
             chat = await bot.get_chat(channel_input)
-            stored_id = str(chat.id)
-            display_id = f"@{chat.username}" if chat.username else str(chat.id)
+            # Store username if public, else numeric ID
+            stored_id = f"@{chat.username}" if chat.username else str(chat.id)
+            display_id = stored_id
             title = chat.title or channel_input
+            invite_link = chat.invite_link
         except Exception as api_err:
             # Fallback for Pydantic validation errors (e.g. "paid" reactions)
             logger.warning("Standard get_chat failed, trying raw fallback: %s", api_err)
@@ -516,10 +518,11 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
                         raise Exception(payload.get("description", "Unknown API error"))
                     
                     result = payload["result"]
-                    stored_id = str(result["id"])
                     username = result.get("username")
-                    display_id = f"@{username}" if username else str(result["id"])
+                    stored_id = f"@{username}" if username else str(result["id"])
+                    display_id = stored_id
                     title = result.get("title") or channel_input
+                    invite_link = result.get("invite_link")
 
         # Check bot status: must be admin to check other members later
         try:
@@ -534,7 +537,7 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
             logger.warning("Bot status check failed: %s", e)
 
         # Save to DB
-        await db.add_channel(stored_id, title, message.from_user.id)
+        await db.add_channel(stored_id, title, message.from_user.id, invite_link=invite_link)
         await state.clear()
         
         await message.answer(

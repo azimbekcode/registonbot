@@ -22,10 +22,17 @@ def channel_check_kb(channels: list, lang: str = "uz") -> InlineKeyboardMarkup:
     for ch in channels:
         ch_id = ch["channel_id"]
         title = ch["channel_title"] or ch_id
-        if ch_id.startswith("@"):
+        
+        # Priority 1: Stored invite link
+        if ch.get("invite_link"):
+            link = ch["invite_link"]
+        # Priority 2: Public username
+        elif ch_id.startswith("@"):
             link = f"https://t.me/{ch_id[1:]}"
+        # Priority 3: Private channel constructed link (fallback)
         else:
             link = f"https://t.me/c/{str(ch_id).replace('-100', '')}"
+            
         builder.row(InlineKeyboardButton(text=f"📢 {title}", url=link))
     builder.row(
         InlineKeyboardButton(text=t("btn_subscribed", lang), callback_data="check_subscription")

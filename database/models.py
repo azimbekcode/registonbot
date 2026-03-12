@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS channels (
     id            SERIAL PRIMARY KEY,
     channel_id    TEXT NOT NULL,
     channel_title TEXT,
+    invite_link   TEXT,
     is_active     SMALLINT DEFAULT 1,
     added_by      BIGINT,
     added_at      TIMESTAMP DEFAULT NOW()
@@ -76,6 +77,10 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'standard';
 # Migration: add original_caption column if missing
 MIGRATE_COURSES_CAPTION = """
 ALTER TABLE courses ADD COLUMN IF NOT EXISTS original_caption TEXT;
+"""
+
+MIGRATE_CHANNELS_INVITE_LINK = """
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS invite_link TEXT;
 """
 
 # Migration: add language column to users
