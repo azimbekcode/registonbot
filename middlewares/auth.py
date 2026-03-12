@@ -53,14 +53,20 @@ class AuthMiddleware(BaseMiddleware):
                 )
 
                 # --- GLOBAL GUARDS ---
-                # 1. If user was deleted from DB, get_or_create_user will return a new unregistered user.
-                # 2. Redirect unregistered users to start if they try to use other features.
-                is_reg = db_user.get("is_registered", False) if db_user else False
+                # Check if user is an admin or superadmin to exempt them from subscription checks
+                from config import config
+                is_admin_user = (user.id == int(config.superadmin_id))
+                if not is_admin_user:
+                    admin_row = await db.get_admin(user.id)
+                    is_admin_user = admin_row is not None
                 
-                # Check for subscription on every message/callback (if registered)
-                if is_reg:
+                # Check for subscription on every message/callback (EXCEPT FOR ADMINS)
+                if not is_admin_user:
                     # We only check for messages/callbacks that aren't about checking subscription itself
-                    is_check_cb = isinstance(event, Update) and event.callback_query and event.callback_query.data == "check_subscription"
+                    is_check_cb = False
+                    if isinstance(event, Update):
+                        if event.callback_query and event.callback_query.data == "check_subscription":
+                            is_check_cb = True
                     
                     if not is_check_cb:
                         channels = await db.get_active_channels()
@@ -71,20 +77,19 @@ class AuthMiddleware(BaseMiddleware):
                             
                             all_sub, results = await check_subscriptions(data["bot"], user.id, channels)
                             if not all_sub:
-                                lang = db_user.get("language", "uz")
+                                # Get user language, fallback to 'uz'
+                                lang = db_user.get("language", "uz") if db_user else "uz"
                                 not_joined = [ch for ch, ok in zip(channels, results) if not ok]
+                                
+                                # Send subscription prompt based on event type
+                                prompt_text = t("channel_join_prompt", lang, n=len(not_joined))
+                                kb = channel_check_kb(not_joined, lang=lang)
                                 
                                 if isinstance(event, Update):
                                     if event.message:
-                                        await event.message.answer(
-                                            t("channel_join_prompt", lang, n=len(not_joined)),
-                                            reply_markup=channel_check_kb(not_joined, lang=lang),
-                                        )
+                                        await event.message.answer(prompt_text, reply_markup=kb)
                                     elif event.callback_query:
-                                        await event.callback_query.message.answer(
-                                            t("channel_join_prompt", lang, n=len(not_joined)),
-                                            reply_markup=channel_check_kb(not_joined, lang=lang),
-                                        )
+                                        await event.callback_query.message.answer(prompt_text, reply_markup=kb)
                                         await event.callback_query.answer()
                                 return  # Stop processing for unsubscribed users
 

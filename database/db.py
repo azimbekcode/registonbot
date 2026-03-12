@@ -71,13 +71,15 @@ async def init_db():
             MIGRATE_USERS_LANGUAGE, 
             MIGRATE_COURSES_CATEGORY,
             MIGRATE_COURSES_CAPTION,
-            MIGRATE_CHANNELS_INVITE_LINK
+            MIGRATE_CHANNELS_INVITE_LINK,
+            MIGRATE_CHANNELS_UNIQUE_ID
         )
         await conn.execute(MIGRATE_COURSES_FILE_ID)
         await conn.execute(MIGRATE_USERS_LANGUAGE)
         await conn.execute(MIGRATE_COURSES_CATEGORY)
         await conn.execute(MIGRATE_COURSES_CAPTION)
         await conn.execute(MIGRATE_CHANNELS_INVITE_LINK)
+        await conn.execute(MIGRATE_CHANNELS_UNIQUE_ID)
 
         # Insert default settings (ON CONFLICT DO NOTHING = no overwrite)
         for key, value in DEFAULT_SETTINGS:
@@ -421,8 +423,9 @@ async def add_channel(channel_id: str, channel_title: str, added_by: int, invite
 
 async def remove_channel(channel_id: str):
     async with pool().acquire() as conn:
+        # Match by channel_id (string, can be numeric or username)
         await conn.execute(
-            "DELETE FROM channels WHERE channel_id = $1", channel_id
+            "DELETE FROM channels WHERE channel_id = $1", str(channel_id)
         )
 
 

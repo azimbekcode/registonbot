@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS referrals (
 CREATE_CHANNELS_TABLE = """
 CREATE TABLE IF NOT EXISTS channels (
     id            SERIAL PRIMARY KEY,
-    channel_id    TEXT NOT NULL,
+    channel_id    TEXT UNIQUE NOT NULL,
     channel_title TEXT,
     invite_link   TEXT,
     is_active     SMALLINT DEFAULT 1,
@@ -81,6 +81,15 @@ ALTER TABLE courses ADD COLUMN IF NOT EXISTS original_caption TEXT;
 
 MIGRATE_CHANNELS_INVITE_LINK = """
 ALTER TABLE channels ADD COLUMN IF NOT EXISTS invite_link TEXT;
+"""
+
+MIGRATE_CHANNELS_UNIQUE_ID = """
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'channels_channel_id_key') THEN
+        ALTER TABLE channels ADD CONSTRAINT channels_channel_id_key UNIQUE (channel_id);
+    END IF;
+END $$;
 """
 
 # Migration: add language column to users
