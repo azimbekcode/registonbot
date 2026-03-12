@@ -8,6 +8,7 @@ import logging
 import io
 import re
 import html
+import aiohttp
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
@@ -498,11 +499,27 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
     # Try to get channel info
     try:
         # First attempt: get_chat
-        chat = await bot.get_chat(channel_input)
-        stored_id = str(chat.id)  # Always use numeric ID for DB to avoid issues if username changes
-        # But for display, preferred username
-        display_id = f"@{chat.username}" if chat.username else str(chat.id)
-        title = chat.title or channel_input
+        try:
+            chat = await bot.get_chat(channel_input)
+            stored_id = str(chat.id)
+            display_id = f"@{chat.username}" if chat.username else str(chat.id)
+            title = chat.title or channel_input
+        except Exception as api_err:
+            # Fallback for Pydantic validation errors (e.g. "paid" reactions)
+            logger.warning("Standard get_chat failed, trying raw fallback: %s", api_err)
+            async with aiohttp.ClientSession() as session:
+                token = bot.token
+                url = f"https://api.telegram.org/bot{token}/getChat"
+                async with session.get(url, params={"chat_id": channel_input}) as resp:
+                    payload = await resp.json()
+                    if not payload.get("ok"):
+                        raise Exception(payload.get("description", "Unknown API error"))
+                    
+                    result = payload["result"]
+                    stored_id = str(result["id"])
+                    username = result.get("username")
+                    display_id = f"@{username}" if username else str(result["id"])
+                    title = result.get("title") or channel_input
 
         # Check bot status: must be admin to check other members later
         try:
