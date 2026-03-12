@@ -7,6 +7,7 @@ import asyncio
 import logging
 import io
 import re
+import html
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
@@ -234,9 +235,8 @@ async def _do_search(message: Message, state: FSMContext, mode: str):
     else:  # search_by_all
         results = await db.search_users(query)
 
-    if not results:
         await message.answer(
-            f"❌ <b>Topilmadi</b>\n\nSo'rov: <code>{query}</code>",
+            f"❌ <b>Topilmadi</b>\n\nSo'rov: <code>{html.escape(query)}</code>",
             reply_markup=admin_back_kb()
         )
         return
@@ -249,8 +249,8 @@ async def _do_search(message: Message, state: FSMContext, mode: str):
         builder = InlineKeyboardBuilder()
         for u in results[:10]:
             unknown = "Noma'lum"
-            name = u["full_name"] or u["first_name"] or unknown
-            phone = u["phone"] or ""
+            name = html.escape(u["full_name"] or u["first_name"] or unknown)
+            phone = html.escape(u["phone"] or "")
             builder.row(
                 InlineKeyboardButton(
                     text=f"#{u['id']} | {name} | {phone}",
@@ -301,13 +301,13 @@ async def process_user_search(message: Message, state: FSMContext):
 
 async def show_user_detail(message_or_cb, user_row, is_superadmin: bool = False, lang: str = "uz"):
     unknown = "Noma'lum"
-    fn = user_row['full_name'] or ''
-    ln = user_row['last_name_reg'] or ''
+    fn = html.escape(user_row['full_name'] or '')
+    ln = html.escape(user_row['last_name_reg'] or '')
     name = f"{fn} {ln}".strip() or unknown
-    tg = f"@{user_row['username']}" if user_row["username"] else "-"
+    tg = f"@{html.escape(user_row['username'])}" if user_row["username"] else "-"
     banned = bool(user_row["is_banned"])
-    ph = user_row['phone'] or '-'
-    prof = user_row['profession'] or '-'
+    ph = html.escape(user_row['phone'] or '-')
+    prof = html.escape(user_row['profession'] or '-')
     joined = str(user_row['joined_at'])[:10] if user_row['joined_at'] else '-'
     reg_at = str(user_row['registered_at'])[:10] if user_row.get('registered_at') else '-'
     refs = user_row['referral_count'] or 0
@@ -445,7 +445,9 @@ async def admin_channels(callback: CallbackQuery, state: FSMContext):
     else:
         for ch in channels:
             s = "✅" if ch["is_active"] else "❌"
-            text += f"{s} {ch['channel_title'] or ch['channel_id']} — <code>{ch['channel_id']}</code>\n"
+            title = html.escape(ch["channel_title"] or "Nomsiz")
+            ch_id = html.escape(str(ch["channel_id"]))
+            text += f"{s} {title} — <code>{ch_id}</code>\n"
     lang = await get_lang(callback.from_user.id)
     await callback.message.edit_text(text, reply_markup=channels_kb(channels, lang=lang))
 
@@ -735,8 +737,8 @@ async def process_course_forward(message: Message, state: FSMContext, bot: Bot):
         original_caption=orig_caption,
     )
     await message.answer(
-        f"✅ Darslik qo'shildi: <b>{data.get('course_title', 'Nomsiz')}</b>\n"
-        f"📁 Tur: {file_type} | 🔢 ID: <code>{msg_id}</code>",
+        f"✅ Darslik qo'shildi: <b>{html.escape(data.get('course_title', 'Nomsiz'))}</b>\n"
+        f"📁 Tur: {html.escape(file_type)} | 🔢 ID: <code>{msg_id}</code>",
         reply_markup=admin_back_kb(),
     )
 
@@ -1250,14 +1252,14 @@ async def _show_users_page(callback: CallbackQuery, page: int):
     lines = [f"<b>USERS JADVALI</b> ({total} ta) - Sahifa {page + 1}/{total_pages}\n"]
     user_ids = []
     for u in chunk:
-        fn = u["full_name"] or ""
-        ln = u["last_name_reg"] or ""
+        fn = html.escape(u["full_name"] or "")
+        ln = html.escape(u["last_name_reg"] or "")
         name = (fn + " " + ln).strip() or "Noma'lum"
         reg = "Reg:HA" if u["is_registered"] else "Reg:YOQ"
         ban = " BAN" if u["is_banned"] else ""
         joined = str(u["joined_at"])[:10]
-        uname = u["username"] or "-"
-        phone = u["phone"] or "-"
+        uname = html.escape(u["username"] or "-")
+        phone = html.escape(u["phone"] or "-")
         tid = u["telegram_id"]
         user_ids.append(tid)
         lines.append(
