@@ -522,9 +522,9 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
         
         await message.answer(
             f"✅ Kanal muvaffaqiyatli qo'shildi!\n\n"
-            f"🏷 Nomi: <b>{title}</b>\n"
-            f"🆔 ID: <code>{stored_id}</code>\n"
-            f"🔗 Manzil: {display_id}",
+            f"🏷 Nomi: <b>{html.escape(title)}</b>\n"
+            f"🆔 ID: <code>{html.escape(stored_id)}</code>\n"
+            f"🔗 Manzil: {html.escape(display_id)}",
             reply_markup=admin_back_kb(),
         )
         
@@ -541,7 +541,7 @@ async def process_add_channel(message: Message, state: FSMContext, bot: Bot):
             hint = "Kanal username yoki ID sini tekshiring."
             
         await message.answer(
-            f"❌ <b>Xatolik:</b>\n<code>{error_msg}</code>\n\n"
+            f"❌ <b>Xatolik:</b>\n<code>{html.escape(error_msg)}</code>\n\n"
             f"💡 {hint}",
             reply_markup=admin_back_kb(),
         )
@@ -716,7 +716,7 @@ async def process_course_forward(message: Message, state: FSMContext, bot: Bot):
         await message.answer(
             f"❌ Kanaldan xabar olib bo'lmadi.\n"
             f"ID: <code>{msg_id}</code>\n"
-            f"Xato: {e}\n\n"
+            f"Xato: {html.escape(str(e))}\n\n"
             "Bot kanalda <b>Admin</b> bo'lishi kerak!"
         )
         return
